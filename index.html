@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>外壁塗装 見積もり診断システム</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@500&display=swap');
+:root{
+  --bg:#f4f6f9;--bg2:#fff;--border:#e2e6ed;--text:#1a1d27;--muted:#7a8099;
+  --accent:#2563eb;--green:#16a34a;--yellow:#d97706;--red:#dc2626;
+  --green-bg:#f0fdf4;--yellow-bg:#fffbeb;--red-bg:#fef2f2;
+  --green-bd:#bbf7d0;--yellow-bd:#fde68a;--red-bd:#fecaca;
+  --sh:0 1px 4px rgba(0,0,0,0.07);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif;background:var(--bg);color:var(--text);padding:1.5rem 1rem}
+#app{max-width:840px;margin:0 auto}
+.app-head{margin-bottom:1.2rem}
+.app-head h1{font-size:18px;font-weight:700;margin-bottom:3px}
+.app-head p{font-size:12px;color:var(--muted)}
+.input-panel{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:1.2rem;box-shadow:var(--sh)}
+.il{font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:500}
+textarea{width:100%;background:#f8f9fb;border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:12px;padding:10px 12px;resize:vertical;min-height:160px;line-height:1.7;outline:none}
+textarea:focus{border-color:var(--accent)}
+textarea::placeholder{color:#b8bfd0;font-size:11px}
+.btn-row{display:flex;gap:8px;margin-top:10px}
+.btn-d{flex:1;padding:12px;background:var(--accent);border:none;border-radius:7px;color:#fff;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
+.btn-d:hover{opacity:.88}
+.btn-s{padding:12px 18px;background:#fff;border:1.5px solid var(--accent);border-radius:7px;color:var(--accent);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;display:none;white-space:nowrap}
+.btn-s:hover{background:#eff6ff}
+.btn-s:disabled{opacity:.5;cursor:not-allowed}
+
+/* ═══ レポート本体 A4横 1123px×794px ═══ */
+#report{display:none;margin-top:8px}
+.rp{
+  background:#fff;
+  width:1123px;
+  min-height:794px;
+  padding:28px 32px 32px;
+  font-family:'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif;
+}
+
+/* ヘッダー */
+.rp-head{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:2.5px solid #1a1d27;margin-bottom:18px}
+.rp-head-l h2{font-size:18px;font-weight:700;margin-bottom:3px}
+.rp-head-l p{font-size:11px;color:var(--muted)}
+.rp-head-r{font-size:10px;color:var(--muted);text-align:right;line-height:1.8}
+.rp-head-r .client-name{font-size:15px;font-weight:700;color:var(--text);display:block;margin-top:4px}
+.rp-head-r .client-amount{font-size:18px;font-weight:700;font-family:'DM Mono',monospace;color:var(--accent);display:block;margin-top:2px}
+
+/* セクション */
+.sec{font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+
+/* ステータスバー */
+.status-bar{background:#f8f9fb;border-radius:10px;padding:16px 20px;border-left:5px solid var(--rc,#2563eb);display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.rank-badge{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;background:#fff;border:2.5px solid var(--rc,#2563eb);color:var(--rc,#2563eb);flex-shrink:0}
+.status-text{flex:1}
+.status-text h3{font-size:15px;font-weight:700;margin-bottom:3px}
+.status-text p{font-size:11px;color:var(--muted)}
+.gauge-block{width:380px;flex-shrink:0}
+.gl{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px}
+.gt{height:9px;background:#e2e6ed;border-radius:99px;overflow:hidden}
+.gf{height:100%;border-radius:99px}
+
+/* 2カラムグリッド */
+.grid2{display:grid;grid-template-columns:320px 1fr;gap:12px;margin-bottom:14px}
+.card{background:#fff;border:1px solid var(--border);border-radius:9px;padding:14px;box-shadow:var(--sh)}
+.card-title{font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px}
+
+/* レーダー */
+.radar-wrap{height:220px;position:relative}
+
+/* スコアカード */
+.si{padding:9px 0;border-bottom:1px solid var(--border)}
+.si:last-child{border-bottom:none;padding-bottom:0}
+.si-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.si-label{font-size:12px;font-weight:500}
+.stars{color:#d97706;font-size:13px;letter-spacing:.5px}
+.si-comment{font-size:10px;color:var(--muted);line-height:1.55}
+.traffic{display:flex;gap:5px;align-items:center;margin:5px 0 4px}
+.light{width:13px;height:13px;border-radius:50%;background:#e2e6ed}
+.on-r{background:#dc2626}.on-y{background:#d97706}.on-g{background:#16a34a}
+.risk-lbl{font-size:11px;font-weight:700;margin-left:3px}
+
+/* アラート（全幅） */
+.alerts-wrap{margin-bottom:14px}
+.alerts-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.alert-item{display:flex;gap:9px;align-items:flex-start;padding:10px 12px;border-radius:8px;border:1px solid}
+.alert-item.high{background:var(--red-bg);border-color:var(--red-bd)}
+.alert-item.mid{background:var(--yellow-bg);border-color:var(--yellow-bd)}
+.alert-item.low{background:var(--green-bg);border-color:var(--green-bd)}
+.ai{font-size:14px;flex-shrink:0;margin-top:1px}
+.ab h4{font-size:11px;font-weight:700;margin-bottom:2px;color:var(--text)}
+.ab p{font-size:10px;color:var(--muted);line-height:1.55}
+
+/* 結論＋チェックリスト */
+.conclusion-wrap{margin-bottom:14px}
+.verdict-box{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:9px;border:1px solid;margin-bottom:14px}
+.vi{font-size:22px;flex-shrink:0}
+.vt h3{font-size:14px;font-weight:700;margin-bottom:4px}
+.vt p{font-size:11px;color:var(--muted);line-height:1.6}
+.checklist{list-style:none}
+.checklist li{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;line-height:1.6;color:var(--text)}
+.checklist li:last-child{border-bottom:none}
+.checklist li::before{content:'□';color:var(--accent);flex-shrink:0;font-family:monospace;font-weight:700;margin-top:1px}
+
+/* フッター */
+.rp-foot{margin-top:16px;padding-top:10px;border-top:1px solid var(--border);font-size:9px;color:#b8bfd0;text-align:center}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="app-head">
+    <h1>外壁塗装 見積もり診断システム</h1>
+    <p>見積書・業者情報を貼り付けると自動で診断レポートを生成します（通信不要）</p>
+  </div>
+  <div class="input-panel">
+    <div class="il">見積もり内容・業者情報を貼り付けてください</div>
+    <textarea id="inputText" placeholder="ジェネレーターで作成した見積もりをそのままコピー＆ペーストしてください。&#10;（工事内訳・使用塗料・業者情報・口コミなど含まれていると精度が上がります）"></textarea>
+    <div class="btn-row">
+      <button class="btn-d" id="diagnoseBtn">診断する</button>
+      <button class="btn-s" id="saveBtn">画像で保存（A4横）</button>
+    </div>
+  </div>
+  <div id="report">
+    <div class="rp" id="rp"></div>
+  </div>
+</div>
+
+<script>
+function has(t,...w){return w.some(x=>t.includes(x));}
+function cnt(t,...w){return w.filter(x=>t.includes(x)).length;}
+
+function diagnose(raw){
+  const t=raw;
+  let price=50;
+  if(has(t,'坪×','坪 ×'))price+=20;
+  if(has(t,'諸経費','廃材処理'))price+=10;
+  if(has(t,'小計','消費税'))price+=8;
+  if(has(t,'コーキング打ち替え'))price+=7;
+  if(has(t,'ひび割れ補修','Uカット'))price+=5;
+  if(has(t,'一式'))price-=20;
+  if(cnt(t,'一式')>=4)price-=15;
+  if(has(t,'架空','水増し','相場の約2倍','相場の2倍'))price-=30;
+  if(has(t,'8,500円','9,200円','7,500円'))price-=15;
+  price=Math.max(5,Math.min(100,price));
+
+  let quality=50;
+  if(has(t,'フッ素ラジカル','無機','フッ素'))quality+=15;
+  if(has(t,'品番','KP-','ND-','SK-','FPB-'))quality+=15;
+  if(has(t,'中塗り・上塗り','3回塗り'))quality+=8;
+  if(has(t,'微弾性フィラー','シーラー'))quality+=7;
+  if(has(t,'コーキング打ち替え'))quality+=5;
+  if(has(t,'14〜18日','16〜22日','19〜26日'))quality+=5;
+  if(has(t,'5〜7日','7〜10日'))quality-=15;
+  if(has(t,'5回塗り','プレミアム外壁塗装5回'))quality-=10;
+  if(has(t,'品番・メーカー不明','型番不明'))quality-=20;
+  quality=Math.max(5,Math.min(100,quality));
+
+  let trust=50;
+  if(has(t,'建設業許可番号'))trust+=20;
+  if(has(t,'固定電話'))trust+=10;
+  if(has(t,'Webサイト：あり','公式サイト'))trust+=10;
+  if(has(t,'施工事例','スタッフ紹介'))trust+=5;
+  if(has(t,'特商法','プライバシーポリシー'))trust+=5;
+  if(has(t,'4.','★4','★5')&&has(t,'件）','件)'))trust+=8;
+  if(has(t,'オーナーが丁寧に返信'))trust+=5;
+  if(has(t,'Webサイト：なし','サイトが見当たらない','SNSのみ'))trust-=20;
+  if(has(t,'携帯番号のみ','固定電話・会社住所の記載なし'))trust-=15;
+  if(has(t,'登録自体がない','口コミが0件'))trust-=15;
+  if(has(t,'シール貼りで修正','住所が実在しない'))trust-=20;
+  if(has(t,'流用','他社サイトから流用'))trust-=10;
+  trust=Math.max(5,Math.min(100,trust));
+
+  let safety=50;
+  if(has(t,'クーリングオフ','クーリング・オフ')){
+    if(has(t,'書面で行う','説明を書面'))safety+=25;
+    else if(has(t,'故意に省く','説明をしない','該当しない'))safety-=30;
+    else safety+=5;
+  }
+  if(has(t,'他社とも比較','急がなくて大丈夫'))safety+=15;
+  if(has(t,'今日契約','今日ハンコ','即決','今日だけ'))safety-=25;
+  if(has(t,'今月中','今日中に決め'))safety-=15;
+  if(has(t,'家族の介入を阻','息子さんに相談する前'))safety-=20;
+  if(has(t,'契約書だけ先に'))safety-=15;
+  if(has(t,'劣化報告書','写真付き'))safety+=10;
+  safety=Math.max(5,Math.min(100,safety));
+
+  let dur=50;
+  if(has(t,'塗膜保証20年','製品保証20年','製品保証25年'))dur+=25;
+  else if(has(t,'塗膜保証15年','保証15年'))dur+=18;
+  else if(has(t,'塗膜保証10年','保証10年'))dur+=10;
+  if(has(t,'施工保証5年','施工保証10年','施工保証15年'))dur+=10;
+  if(has(t,'無機','フッ素ラジカル'))dur+=8;
+  if(has(t,'保証2年','施工保証2年'))dur-=20;
+  if(has(t,'保証書発行なし','保証書を渡さず','根拠不明'))dur-=25;
+  if(has(t,'自社保証30年'))dur-=10;
+  dur=Math.max(5,Math.min(100,dur));
+
+  const totalScore=Math.round(price*.25+quality*.20+trust*.25+safety*.20+dur*.10);
+  const rank=totalScore>=90?'S':totalScore>=75?'A':totalScore>=60?'B':totalScore>=40?'C':'D';
+  const rankMeta={
+    S:{label:'安心して契約できます',oneLiner:'透明性・信頼性ともに高水準の優良業者です'},
+    A:{label:'概ね信頼できる業者です',oneLiner:'基準を満たす適正な見積もりです'},
+    B:{label:'確認が必要な点があります',oneLiner:'不明点を解消してから判断してください'},
+    C:{label:'注意が必要な見積もりです',oneLiner:'複数のリスク要因が確認されました'},
+    D:{label:'契約を見送ることを強く推奨します',oneLiner:'悪徳業者の典型的パターンが見られます'},
+  };
+
+  const estS=price>=85?5:price>=70?4:price>=55?3:price>=40?2:1;
+  const estC=price>=85?'坪単価・明細がすべて明示されており根拠のある適正な見積もりです。':price>=70?'概ね明細が記載されていますが一部「一式」表記が含まれます。':price>=55?'「一式」表記が多く内訳不明な項目があります。詳細の提示を求めてください。':price>=40?'内訳が不明確で追加請求リスクがあります。相見積もりを強く推奨します。':'架空の工事または相場の2倍以上の価格が含まれている可能性があります。';
+  const venS=trust>=85?5:trust>=70?4:trust>=55?3:trust>=40?2:1;
+  const venC=trust>=85?'建設業許可番号・固定電話・Webサイトが確認でき信頼性の高い業者です。':trust>=70?'基本的な連絡先は確認できますがWebサイトや口コミの追加確認を推奨します。':trust>=55?'連絡先情報が不完全です。建設業許可番号とWebサイトを必ず確認してください。':trust>=40?'連絡先が携帯のみ、またはWebサイトが見当たりません。実態の確認が必要です。':'Webサイトがなく連絡先も不明確です。悪徳業者の可能性が高く契約は避けてください。';
+  const riskLv=safety>=70?'low':safety>=45?'mid':'high';
+  const riskC=safety>=70?'クーリングオフの説明が書面で行われており即決を迫る言動も見られません。':safety>=45?'一部に急かす言動が見受けられます。クーリングオフの書面説明を求めてください。':'即決強要・クーリングオフ未説明・家族への相談阻止など悪質な手法が確認されます。';
+
+  const alerts=[];
+  if(has(t,'今日契約','今日ハンコ','今日だけ','今日中に決め'))alerts.push({s:'high',ti:'即決を強要する言動を確認',de:'「今日だけ特別価格」は悪徳業者の典型的な手口です。クーリングオフ（8日間）を必ず活用してください。'});
+  if(has(t,'架空','実態なし'))alerts.push({s:'high',ti:'架空工事項目が含まれている',de:'「特殊バリア処理」「ナノセラミック」など実態のない工事で費用を水増しするパターンです。'});
+  if(has(t,'8,500円','9,200円','7,500円')||has(t,'相場の約2倍'))alerts.push({s:'high',ti:'足場代が相場の2倍以上',de:'足場の適正坪単価は3,500〜4,500円程度です。8,000円超は明らかな水増しです。'});
+  if(has(t,'クーリングオフ')&&has(t,'故意に省く','説明をしない','該当しない'))alerts.push({s:'high',ti:'クーリングオフの説明なし',de:'訪問販売では8日以内のクーリングオフが法律で保証されています。説明を省く業者は違法の可能性があります。'});
+  if(has(t,'Webサイト：なし','サイトが見当たらない'))alerts.push({s:'high',ti:'Webサイトが存在しない',de:'信頼できる業者は必ずWebサイトを持っています。サイトがない業者への依頼は慎重に。'});
+  if(has(t,'携帯番号のみ','固定電話・会社住所の記載なし'))alerts.push({s:'high',ti:'連絡先が携帯番号のみ',de:'工事後にトラブルが発生しても連絡が取れなくなるリスクがあります。'});
+  if(has(t,'一式')&&cnt(t,'一式')>=4)alerts.push({s:'mid',ti:'「一式」表記が多すぎる',de:'内訳が不明で後から追加請求されるリスクがあります。明細の提示を求めてください。'});
+  if(!has(t,'品番','KP-','ND-','SK-')&&!has(t,'一式'))alerts.push({s:'mid',ti:'塗料の品番・メーカーが不明',de:'使用塗料が特定できないと安価な塗料を使われても確認できません。品番の明記を要求してください。'});
+  if(has(t,'5〜7日','7〜10日'))alerts.push({s:'mid',ti:'工期が短すぎる可能性',de:'外壁・屋根の塗装は乾燥時間を含めて14日以上が適正です。7日以下は手抜き工事の恐れがあります。'});
+  if(has(t,'保証書発行なし','保証2年'))alerts.push({s:'mid',ti:'保証内容が不十分',de:'適正な業者は塗膜保証10年以上・施工保証5年以上を書面で提示します。'});
+  if(has(t,'他社とも比較','急がなくて大丈夫','書面で行う'))alerts.push({s:'low',ti:'信頼性の高い営業対応を確認',de:'急かさず書面での説明と他社比較を勧める業者は信頼性が高い傾向にあります。'});
+  if(has(t,'建設業許可番号'))alerts.push({s:'low',ti:'建設業許可番号を確認できる',de:'番号の有効性を国土交通省ネットで照合することをおすすめします。'});
+  const sevO={high:0,mid:1,low:2};
+  alerts.sort((a,b)=>sevO[a.s]-sevO[b.s]);
+  const topA=alerts.slice(0,4);
+
+  const verdict=totalScore>=75?'proceed':totalScore>=50?'caution':'stop';
+  const vMeta={
+    proceed:{label:'契約を進めて問題ありません',detail:'見積もりの透明性・業者の信頼性ともに高水準です。保証書の内容と支払い条件を書面で確認したうえで契約を進めてください。'},
+    caution:{label:'確認事項を解消してから判断してください',detail:'気になる点はあるものの確認次第で判断できるレベルです。チェックリストを業者に確認し納得できれば契約を進めてください。'},
+    stop:{label:'契約を見送ることを強く推奨します',detail:'悪徳業者の典型的なパターンが複数確認されました。契約した場合、追加請求・手抜き工事・保証なしといったトラブルに発展するリスクが非常に高いです。'},
+  };
+
+  const cl=[];
+  if(!has(t,'品番','KP-','ND-','SK-'))cl.push('使用する塗料のメーカー名・製品名・品番を書面で提示してもらえますか？');
+  if(!has(t,'建設業許可番号'))cl.push('建設業許可番号を教えてもらえますか？（国土交通省ネットで確認します）');
+  if(!has(t,'コーキング打ち替え'))cl.push('コーキングは「打ち増し」ですか「打ち替え」ですか？打ち替えは可能ですか？');
+  if(!has(t,'クーリングオフ')||has(t,'省く','説明なし'))cl.push('クーリングオフ（8日間）の説明を書面でいただけますか？');
+  if(has(t,'一式')&&cnt(t,'一式')>=3)cl.push('「一式」となっている項目の作業内容と数量の内訳を詳しく教えてください。');
+  if(!has(t,'固定電話'))cl.push('会社の固定電話番号と所在地を教えてもらえますか？');
+  cl.push('他社にも相見積もりを取る予定ですが、問題ありませんか？');
+
+  return{totalScore,rank,rankLabel:rankMeta[rank].label,oneLiner:rankMeta[rank].oneLiner,
+    radar:{price,quality,trust,safety,durability:dur},
+    sc:{est:{stars:estS,comment:estC},ven:{stars:venS,comment:venC},risk:{level:riskLv,comment:riskC}},
+    alerts:topA,
+    conclusion:{verdict,verdictLabel:vMeta[verdict].label,verdictDetail:vMeta[verdict].detail,checklist:cl.slice(0,5)}
+  };
+}
+
+function rankColor(r){return{S:'#16a34a',A:'#2563eb',B:'#d97706',C:'#ea580c',D:'#dc2626'}[r]||'#7a8099';}
+function starsHTML(n){const v=Math.max(1,Math.min(5,n));return'★'.repeat(v)+'☆'.repeat(5-v);}
+function trafficHTML(lv){
+  const cols={high:'#dc2626',mid:'#d97706',low:'#16a34a'};
+  const lbls={high:'高リスク',mid:'中リスク',low:'低リスク'};
+  return`<div class="traffic"><div class="light ${lv==='high'?'on-r':''}"></div><div class="light ${lv==='mid'?'on-y':''}"></div><div class="light ${lv==='low'?'on-g':''}"></div><span class="risk-lbl" style="color:${cols[lv]}">${lbls[lv]}</span></div>`;
+}
+function vStyle(v){
+  return{proceed:{bg:'#f0fdf4',bd:'#bbf7d0',icon:'✅',col:'#16a34a'},caution:{bg:'#fffbeb',bd:'#fde68a',icon:'⚠️',col:'#d97706'},stop:{bg:'#fef2f2',bd:'#fecaca',icon:'🚫',col:'#dc2626'}}[v];
+}
+function alertIcon(s){return{high:'🚨',mid:'⚠️',low:'ℹ️'}[s];}
+
+let radarChart=null;
+
+function render(d){
+  const col=rankColor(d.rank),vs=vStyle(d.conclusion.verdict);
+  const score=Math.max(0,Math.min(100,d.totalScore));
+  const now=new Date();
+  const ds=now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日';
+
+  // テキストから名前・金額を抽出
+  const text=document.getElementById('inputText').value;
+  const nameMatch=text.match(/お客様氏名[^\n]*\n([A-Z]\.[A-Z])\s*様/)||text.match(/([A-Z]\.[A-Z])\s*様/);
+  const amountMatch=text.match(/お見積もり合計（税込）[\s\S]*?([\d,]+円)/)||text.match(/合計（税込）[\s\S]*?([\d,]+円)/)||text.match(/合計.*?([\d,]+)円/);
+  const clientName=nameMatch?nameMatch[1]+' 様':'';
+  const totalAmount=amountMatch?amountMatch[1]+'円':'';
+
+  // アラートを2カラムグリッドで配置
+  const alertsHTML=d.alerts.map(a=>
+    `<div class="alert-item ${a.s}"><div class="ai">${alertIcon(a.s)}</div><div class="ab"><h4>${a.ti}</h4><p>${a.de}</p></div></div>`
+  ).join('');
+
+  const clHTML=d.conclusion.checklist.map(q=>`<li>${q}</li>`).join('');
+
+  document.getElementById('rp').innerHTML=`
+<div class="rp-head">
+  <div class="rp-head-l">
+    <h2>外壁塗装 見積もり診断レポート</h2>
+    <p>自動診断システムによる分析結果</p>
+  </div>
+  <div class="rp-head-r">診断日：${ds}${clientName?`<span class="client-name">${clientName}</span>`:''}${totalAmount?`<span class="client-amount">${totalAmount}</span>`:''}</div>
+</div>
+
+<div class="sec">総合ステータス</div>
+<div class="status-bar" style="--rc:${col}">
+  <div class="rank-badge">${d.rank}</div>
+  <div class="status-text">
+    <h3>${d.rankLabel}</h3>
+    <p>${d.oneLiner}</p>
+  </div>
+  <div class="gauge-block">
+    <div class="gl"><span>総合スコア</span><span style="font-family:'DM Mono',monospace;font-weight:700;color:${col}">${score} / 100点</span></div>
+    <div class="gt"><div class="gf" style="width:${score}%;background:${col}"></div></div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <div class="card-title">ビジュアル分析（5軸評価）</div>
+    <div class="radar-wrap"><canvas id="rc"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">詳細スコアカード</div>
+    <div class="si">
+      <div class="si-top"><span class="si-label">見積・価格</span><span class="stars">${starsHTML(d.sc.est.stars)}</span></div>
+      <div class="si-comment">${d.sc.est.comment}</div>
+    </div>
+    <div class="si">
+      <div class="si-top"><span class="si-label">業者・信頼性</span><span class="stars">${starsHTML(d.sc.ven.stars)}</span></div>
+      <div class="si-comment">${d.sc.ven.comment}</div>
+    </div>
+    <div class="si">
+      <div class="si-top"><span class="si-label">リスクレベル</span></div>
+      ${trafficHTML(d.sc.risk.level)}
+      <div class="si-comment">${d.sc.risk.comment}</div>
+    </div>
+  </div>
+</div>
+
+<div class="alerts-wrap">
+  <div class="sec" style="margin-top:0">リスク警報</div>
+  <div class="alerts-grid">${alertsHTML}</div>
+</div>
+
+<div class="sec">プロの結論と次の一手</div>
+<div class="grid2 conclusion-wrap">
+  <div>
+    <div class="card-title">プロの結論</div>
+    <div class="verdict-box" style="background:${vs.bg};border-color:${vs.bd}">
+      <div class="vi">${vs.icon}</div>
+      <div class="vt">
+        <h3 style="color:${vs.col}">${d.conclusion.verdictLabel}</h3>
+        <p>${d.conclusion.verdictDetail}</p>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">業者へのチェックリスト</div>
+    <ul class="checklist">${clHTML}</ul>
+  </div>
+</div>
+
+`;
+
+  document.getElementById('report').style.display='block';
+  document.getElementById('saveBtn').style.display='block';
+  document.getElementById('report').scrollIntoView({behavior:'smooth',block:'start'});
+
+  requestAnimationFrame(()=>{
+    const canvas=document.getElementById('rc');
+    if(!canvas)return;
+    if(radarChart)radarChart.destroy();
+    const r=d.radar;
+    radarChart=new Chart(canvas.getContext('2d'),{
+      type:'radar',
+      data:{
+        labels:['適正価格度','施工品質','信頼性','契約安全度','持続性'],
+        datasets:[{
+          data:[r.price,r.quality,r.trust,r.safety,r.durability],
+          backgroundColor:col+'18',borderColor:col,borderWidth:2,
+          pointBackgroundColor:col,pointRadius:4
+        }]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        scales:{r:{min:0,max:100,ticks:{display:false},grid:{color:'rgba(0,0,0,0.07)'},angleLines:{color:'rgba(0,0,0,0.07)'},pointLabels:{color:'#7a8099',font:{size:11}}}},
+        plugins:{legend:{display:false}}
+      }
+    });
+  });
+}
+
+document.getElementById('diagnoseBtn').addEventListener('click',()=>{
+  const text=document.getElementById('inputText').value.trim();
+  if(!text){alert('見積もり内容を貼り付けてください');return;}
+  render(diagnose(text));
+});
+
+document.getElementById('saveBtn').addEventListener('click',()=>{
+  const btn=document.getElementById('saveBtn');
+  btn.textContent='生成中...';btn.disabled=true;
+  html2canvas(document.getElementById('rp'),{
+    scale:2,
+    backgroundColor:'#ffffff',
+    useCORS:true,
+    logging:false,
+    width:1123,
+    windowWidth:1200,
+  }).then(canvas=>{
+    const link=document.createElement('a');
+    const now=new Date();
+    link.download='見積もり診断レポート_'+now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'.png';
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+    btn.textContent='画像で保存（A4横）';btn.disabled=false;
+  }).catch(()=>{
+    alert('画像の生成に失敗しました。');
+    btn.textContent='画像で保存（A4横）';btn.disabled=false;
+  });
+});
+</script>
+</body>
+</html>
